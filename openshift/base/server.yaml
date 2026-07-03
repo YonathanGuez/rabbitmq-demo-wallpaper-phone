@@ -52,6 +52,9 @@ metadata:
     app: wallpaper-server
     app.kubernetes.io/part-of: wallpaper-demo
     app.kubernetes.io/component: api
+  annotations:
+    image.openshift.io/triggers: >-
+      [{"from":{"kind":"ImageStreamTag","name":"wallpaper-server:latest","namespace":"wallpaper-demo"},"fieldPath":"spec.template.spec.containers[?(@.name==\"server\")].image","pause":"false"}]
 spec:
   replicas: 1
   selector:
@@ -67,7 +70,7 @@ spec:
         fsGroup: 1000
       containers:
         - name: server
-          image: wallpaper-server:latest
+          image: ' '
           imagePullPolicy: Always
           command: ["node", "server.js"]
           ports:

@@ -94,6 +94,9 @@ metadata:
     app: wallpaper-nginx
     app.kubernetes.io/part-of: wallpaper-demo
     app.kubernetes.io/component: frontend
+  annotations:
+    image.openshift.io/triggers: >-
+      [{"from":{"kind":"ImageStreamTag","name":"wallpaper-nginx:latest","namespace":"wallpaper-demo"},"fieldPath":"spec.template.spec.containers[?(@.name==\"nginx\")].image","pause":"false"}]
 spec:
   replicas: 1
   selector:
@@ -107,7 +110,7 @@ spec:
     spec:
       containers:
         - name: nginx
-          image: wallpaper-nginx:latest
+          image: ' '
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
