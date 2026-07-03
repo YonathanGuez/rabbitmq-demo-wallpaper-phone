@@ -1,1 +1,4 @@
-/openshift/ia
+node_modules/
+uploads/
+*.log
+.env
