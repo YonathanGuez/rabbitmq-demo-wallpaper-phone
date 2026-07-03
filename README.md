@@ -425,3 +425,141 @@ The RabbitMQ service runs as `user: "0:0"` with `security_opt: label=disable` to
 ## License
 
 Demo project for learning — use and modify freely.
+
+---
+
+## OpenShift deployment (GitOps / ArgoCD)
+
+### Prerequisites
+
+- OpenShift cluster with:
+  - **OpenShift GitOps** (ArgoCD) — install with `openshift/operators/gitops-subscription.yaml`
+  - **RabbitMQ Cluster Operator** — install with `openshift/operators/rabbitmq.yaml`
+  - **OCS/Ceph** storage with `ocs-external-storagecluster-cephfs` StorageClass (RWX PVC)
+- `oc` CLI installed and logged in as `cluster-admin`
+
+### Step 0 — Install operators (cluster-admin, run once per cluster)
+
+**OpenShift GitOps (ArgoCD):**
+
+```bash
+oc apply -f openshift/operators/gitops-subscription.yaml
+```
+
+Installs the operator in `openshift-gitops-operator` namespace and creates ArgoCD in `openshift-gitops`. Wait for it to be ready:
+
+```bash
+oc wait --for=condition=Available deployment/openshift-gitops-server \
+  -n openshift-gitops --timeout=120s
+```
+
+**RabbitMQ Cluster Operator:**
+
+```bash
+oc apply -f openshift/operators/rabbitmq.yaml
+```
+
+Installs the community operator (`rabbitmq-cluster-operator v2.21.1`) in the `rabbit-mq` namespace, which then watches all namespaces for `RabbitmqCluster` resources. Wait for it:
+
+```bash
+oc wait --for=condition=Available deployment/rabbitmq-cluster-operator \
+  -n rabbit-mq --timeout=120s
+```
+
+### Deployment from zero
+
+**1 — Clone and log in**
+
+```bash
+git clone https://github.com/YonathanGuez/rabbitmq-demo-wallpaper-phone
+cd rabbitmq-demo-wallpaper-phone
+oc login <cluster-api-url>
+```
+
+**2 — Bootstrap (run once)**
+
+```bash
+./openshift/deploy.sh --bootstrap
+```
+
+This single command:
+1. Applies the ArgoCD AppProject and grants ArgoCD SA the permissions it needs (RabbitmqCluster, SCC)
+2. Applies the ApplicationSet — ArgoCD syncs 5 waves in order: infra → rabbitmq → server → worker → nginx
+3. Waits for the namespace and RabbitMQ cluster to become ready
+4. Creates the `wallpaper-rabbitmq` secret from the auto-generated RabbitMQ credentials
+5. Triggers the three OpenShift binary builds and waits for completion
+
+> **Why `cluster-admin` for bootstrap?** The custom SCC for RabbitMQ (UID 999) is a cluster-scoped resource. This is a one-time step — rebuilds and code changes need no elevated permissions afterward.
+
+**3 — Get the app URL**
+
+```bash
+oc get route wallpaper-nginx -n wallpaper-demo -o jsonpath='{.spec.host}'
+```
+
+### Sync wave order (ArgoCD ApplicationSet)
+
+| Wave | Application | Resources deployed |
+|------|-------------|--------------------|
+| 0 | `wallpaper-infra` | Namespace, PVC (CephFS 5Gi RWX), SCC + RBAC |
+| 1 | `wallpaper-rabbitmq` | RabbitmqCluster CR |
+| 2 | `wallpaper-server` | ImageStream, BuildConfig, ConfigMap, Deployment, Service |
+| 3 | `wallpaper-worker` | ImageStream, BuildConfig, Deployment |
+| 4 | `wallpaper-nginx` | ImageStream, BuildConfig, ConfigMap, Deployment, Service, Route |
+
+### Day-2 operations
+
+**Rebuild images after a code change:**
+
+```bash
+git add . && git commit -m "..." && git push
+./openshift/deploy.sh
+```
+
+**Check current status:**
+
+```bash
+./openshift/deploy.sh --status
+```
+
+**Scale workers:**
+
+```bash
+oc scale deployment wallpaper-worker --replicas=3 -n wallpaper-demo
+```
+
+### Deletion / Teardown
+
+**1 — Stop ArgoCD automated sync**
+
+```bash
+oc delete applicationset wallpaper-demo -n openshift-gitops
+oc delete appproject wallpaper-demo -n openshift-gitops
+```
+
+**2 — Delete the namespace (removes all workloads, PVC, builds)**
+
+```bash
+oc delete namespace wallpaper-demo
+```
+
+**3 — Delete cluster-scoped resources (requires cluster-admin)**
+
+```bash
+oc delete clusterrolebinding rabbitmq-scc-binding
+oc delete clusterrole use-rabbitmq-scc
+oc delete scc rabbitmq-scc
+oc delete -f openshift/argocd/rbac.yaml
+```
+
+**Full teardown one-liner:**
+
+```bash
+oc delete applicationset wallpaper-demo -n openshift-gitops && \
+oc delete appproject wallpaper-demo -n openshift-gitops && \
+oc delete namespace wallpaper-demo && \
+oc delete clusterrolebinding rabbitmq-scc-binding && \
+oc delete clusterrole use-rabbitmq-scc && \
+oc delete scc rabbitmq-scc && \
+oc delete -f openshift/argocd/rbac.yaml
+```
