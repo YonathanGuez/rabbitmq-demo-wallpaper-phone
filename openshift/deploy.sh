@@ -2,10 +2,11 @@
 # deploy.sh — Build and deploy wallpaper-demo on OpenShift
 #
 # Usage:
-#   ./openshift/deploy.sh                  # build all 3 images + wait
-#   ./openshift/deploy.sh --skip-builds    # push git changes only (ArgoCD syncs)
-#   ./openshift/deploy.sh --bootstrap      # first-time setup (AppProject + ApplicationSet + RabbitMQ secret)
-#   ./openshift/deploy.sh --status         # show current status of all components
+#   ./openshift/deploy.sh                        # build all 3 images + wait
+#   ./openshift/deploy.sh --skip-builds          # push git changes only (ArgoCD syncs)
+#   ./openshift/deploy.sh --bootstrap            # first-time setup (AppProject + ApplicationSet + RabbitMQ secret)
+#   ./openshift/deploy.sh --setup-sso [user]     # grant ArgoCD SSO access (optional, default: current oc user)
+#   ./openshift/deploy.sh --status               # show current status of all components
 #
 # Prerequisites:
 #   - oc login already done
@@ -32,6 +33,26 @@ check_prereqs() {
   command -v oc &>/dev/null  || error "oc not found in PATH"
   oc whoami &>/dev/null      || error "Not logged in to OpenShift. Run: oc login <cluster>"
   info "Logged in as: $(oc whoami) on $(oc whoami --show-server)"
+}
+
+# ─── SSO setup (optional) ─────────────────────────────────────────────────────
+setup_sso() {
+  local TARGET_USER="${1:-$(oc whoami)}"
+  info "Granting ArgoCD SSO access to user: $TARGET_USER"
+
+  if oc get group cluster-admins &>/dev/null; then
+    warn "Group 'cluster-admins' already exists"
+  else
+    oc adm groups new cluster-admins
+    success "Group 'cluster-admins' created"
+  fi
+
+  oc adm groups add-users cluster-admins "$TARGET_USER"
+  success "User '$TARGET_USER' added to 'cluster-admins'"
+
+  ARGOCD_URL="https://$(oc get route openshift-gitops-server -n "$ARGOCD_NS" -o jsonpath='{.spec.host}')"
+  success "Log in to ArgoCD via SSO (OpenShift OAuth): $ARGOCD_URL"
+  info "If already logged in, log out and back in for the new group to take effect."
 }
 
 # ─── Status ───────────────────────────────────────────────────────────────────
@@ -152,8 +173,9 @@ check_prereqs
 
 case "${1:-}" in
   --bootstrap)   bootstrap ;;
+  --setup-sso)   setup_sso "${2:-}" ;;
   --skip-builds) info "Skipping builds — ArgoCD will sync git changes automatically"; show_status ;;
   --status)      show_status ;;
   "")            run_builds ;;
-  *) echo "Usage: $0 [--bootstrap | --skip-builds | --status]"; exit 1 ;;
+  *) echo "Usage: $0 [--bootstrap | --setup-sso [user] | --skip-builds | --status]"; exit 1 ;;
 esac

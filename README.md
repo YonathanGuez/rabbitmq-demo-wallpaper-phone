@@ -156,35 +156,6 @@ You do **not** need more workers for a single image — one job only needs one w
 
 **Rule of thumb:** More workers = more parallel resizing. The queue + RabbitMQ decide **who** gets the next job.
 
-## Project structure
-
-```
-RabbitMQ/
-├── openshift/              # OpenShift manifests (app only; RabbitMQ via operator)
-│   ├── argocd/             # ApplicationSet + GitOps bootstrap
-│   ├── kustomization.yaml
-│   ├── server.yaml         # API microservice
-│   ├── worker.yaml         # Worker microservice
-│   ├── nginx.yaml          # Frontend microservice
-│   ├── deploy.sh           # Imperative one-command deploy
-│   ├── pvc.yaml
-│   └── README.md
-├── docker-compose.yml      # Podman Compose services
-├── Dockerfile              # Node image (server + worker)
-├── package.json
-├── server.js               # API, Multer, RabbitMQ publisher, Socket.io
-├── worker.js               # Queue consumer, Sharp resize, progress reporter
-├── nginx/
-│   ├── Dockerfile
-│   └── nginx.conf          # Static files + reverse proxy
-└── public/
-    ├── index.html          # Single + batch upload
-    ├── gallery.html        # Batch upload + wallpaper gallery
-    ├── bg-picker.js        # Background color UI
-    ├── queue-log.js        # Left sidebar message log
-    └── queue-log.css
-```
-
 ## Quick start
 
 ### Prerequisites
@@ -422,10 +393,6 @@ The RabbitMQ service runs as `user: "0:0"` with `security_opt: label=disable` to
 | **Prefetch**     | `prefetch(1)` — one job per worker at a time                  |
 | **Durability**   | Queue declared `durable: true`; messages `persistent: true`   |
 
-## License
-
-Demo project for learning — use and modify freely.
-
 ---
 
 ## OpenShift deployment (GitOps / ArgoCD)
@@ -433,38 +400,10 @@ Demo project for learning — use and modify freely.
 ### Prerequisites
 
 - OpenShift cluster with:
-  - **OpenShift GitOps** (ArgoCD) — install with `openshift/operators/gitops-subscription.yaml`
-  - **RabbitMQ Cluster Operator** — install with `openshift/operators/rabbitmq.yaml`
+  - **OpenShift GitOps** (ArgoCD) installed in `openshift-gitops` namespace
+  - **RabbitMQ Cluster Operator** installed (`rabbitmq.com/v1beta1`)
   - **OCS/Ceph** storage with `ocs-external-storagecluster-cephfs` StorageClass (RWX PVC)
-- `oc` CLI installed and logged in as `cluster-admin`
-
-### Step 0 — Install operators (cluster-admin, run once per cluster)
-
-**OpenShift GitOps (ArgoCD):**
-
-```bash
-oc apply -f openshift/operators/gitops-subscription.yaml
-```
-
-Installs the operator in `openshift-gitops-operator` namespace and creates ArgoCD in `openshift-gitops`. Wait for it to be ready:
-
-```bash
-oc wait --for=condition=Available deployment/openshift-gitops-server \
-  -n openshift-gitops --timeout=120s
-```
-
-**RabbitMQ Cluster Operator:**
-
-```bash
-oc apply -f openshift/operators/rabbitmq.yaml
-```
-
-Installs the community operator (`rabbitmq-cluster-operator v2.21.1`) in the `rabbit-mq` namespace, which then watches all namespaces for `RabbitmqCluster` resources. Wait for it:
-
-```bash
-oc wait --for=condition=Available deployment/rabbitmq-cluster-operator \
-  -n rabbit-mq --timeout=120s
-```
+- `oc` CLI installed and logged in as `cluster-admin` (bootstrap step only)
 
 ### Deployment from zero
 
@@ -483,6 +422,7 @@ oc login <cluster-api-url>
 ```
 
 This single command:
+
 1. Applies the ArgoCD AppProject and grants ArgoCD SA the permissions it needs (RabbitmqCluster, SCC)
 2. Applies the ApplicationSet — ArgoCD syncs 5 waves in order: infra → rabbitmq → server → worker → nginx
 3. Waits for the namespace and RabbitMQ cluster to become ready
@@ -499,13 +439,13 @@ oc get route wallpaper-nginx -n wallpaper-demo -o jsonpath='{.spec.host}'
 
 ### Sync wave order (ArgoCD ApplicationSet)
 
-| Wave | Application | Resources deployed |
-|------|-------------|--------------------|
-| 0 | `wallpaper-infra` | Namespace, PVC (CephFS 5Gi RWX), SCC + RBAC |
-| 1 | `wallpaper-rabbitmq` | RabbitmqCluster CR |
-| 2 | `wallpaper-server` | ImageStream, BuildConfig, ConfigMap, Deployment, Service |
-| 3 | `wallpaper-worker` | ImageStream, BuildConfig, Deployment |
-| 4 | `wallpaper-nginx` | ImageStream, BuildConfig, ConfigMap, Deployment, Service, Route |
+| Wave | Application          | Resources deployed                                              |
+| ---- | -------------------- | --------------------------------------------------------------- |
+| 0    | `wallpaper-infra`    | Namespace, PVC (CephFS 5Gi RWX), SCC + RBAC                     |
+| 1    | `wallpaper-rabbitmq` | RabbitmqCluster CR                                              |
+| 2    | `wallpaper-server`   | ImageStream, BuildConfig, ConfigMap, Deployment, Service        |
+| 3    | `wallpaper-worker`   | ImageStream, BuildConfig, Deployment                            |
+| 4    | `wallpaper-nginx`    | ImageStream, BuildConfig, ConfigMap, Deployment, Service, Route |
 
 ### Day-2 operations
 
@@ -563,3 +503,7 @@ oc delete clusterrole use-rabbitmq-scc && \
 oc delete scc rabbitmq-scc && \
 oc delete -f openshift/argocd/rbac.yaml
 ```
+
+## License
+
+Demo project for learning — use and modify freely.
