@@ -64,6 +64,11 @@ spec:
       destination:
         server: https://kubernetes.default.svc
         namespace: wallpaper-demo
+      ignoreDifferences:
+        - group: apps
+          kind: Deployment
+          jqPathExpressions:
+            - .spec.template.spec.containers[].image
       syncPolicy:
         automated:
           prune: true
@@ -76,8 +81,3 @@ spec:
             maxDuration: 3m
         syncOptions:
           - RespectIgnoreDifferences=true
-        ignoreDifferences:
-          - group: apps
-            kind: Deployment
-            jqPathExpressions:
-              - .spec.template.spec.containers[].image

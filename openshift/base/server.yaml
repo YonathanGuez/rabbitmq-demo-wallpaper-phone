@@ -66,8 +66,6 @@ spec:
         app: wallpaper-server
         app.kubernetes.io/part-of: wallpaper-demo
     spec:
-      securityContext:
-        fsGroup: 1000
       containers:
         - name: server
           image: ' '

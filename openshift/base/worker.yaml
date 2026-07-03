@@ -55,8 +55,6 @@ spec:
         app: wallpaper-worker
         app.kubernetes.io/part-of: wallpaper-demo
     spec:
-      securityContext:
-        fsGroup: 1000
       containers:
         - name: worker
           image: ' '
