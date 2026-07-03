@@ -4,3 +4,4 @@ metadata:
   name: wallpaper-demo
   labels:
     app.kubernetes.io/part-of: wallpaper-demo
+    argocd.argoproj.io/managed-by: openshift-gitops
