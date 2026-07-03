@@ -1,0 +1,147 @@
+.page-layout {
+  display: flex;
+  min-height: 100vh;
+  margin: 0;
+}
+
+.queue-sidebar {
+  width: 320px;
+  min-width: 280px;
+  flex-shrink: 0;
+  background: #1e1e2e;
+  color: #cdd6f4;
+  padding: 1rem;
+  overflow-y: auto;
+  border-right: 1px solid #313244;
+  font-size: 0.8rem;
+}
+
+.queue-sidebar h2 {
+  font-size: 0.95rem;
+  margin: 0 0 0.25rem;
+  color: #fab387;
+}
+
+.queue-hint {
+  margin: 0 0 1rem;
+  color: #a6adc8;
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.queue-hint code {
+  background: #313244;
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  color: #89b4fa;
+}
+
+.client-label-wrap {
+  margin-bottom: 1rem;
+}
+
+.client-label-wrap label {
+  display: block;
+  font-size: 0.75rem;
+  color: #a6adc8;
+  margin-bottom: 0.35rem;
+}
+
+.client-label-wrap input {
+  width: 100%;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid #45475a;
+  border-radius: 6px;
+  background: #313244;
+  color: #cdd6f4;
+  font-size: 0.8rem;
+}
+
+.sim-tip {
+  margin: 0 0 1rem;
+  padding: 0.6rem;
+  background: #313244;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: #bac2de;
+}
+
+.sim-tip strong {
+  color: #f9e2af;
+}
+
+#queueLogList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.queue-entry {
+  margin-bottom: 0.65rem;
+  padding: 0.55rem;
+  background: #313244;
+  border-radius: 6px;
+  border-left: 3px solid #89b4fa;
+}
+
+.queue-entry.claimed {
+  border-left-color: #a6e3a1;
+}
+
+.queue-entry .entry-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+  font-size: 0.7rem;
+  color: #a6adc8;
+}
+
+.queue-entry .entry-badge {
+  font-weight: 600;
+  color: #89b4fa;
+  text-transform: uppercase;
+  font-size: 0.65rem;
+}
+
+.queue-entry.claimed .entry-badge {
+  color: #a6e3a1;
+}
+
+.queue-entry pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-family: ui-monospace, monospace;
+  font-size: 0.68rem;
+  line-height: 1.4;
+  color: #cdd6f4;
+}
+
+.page-main {
+  flex: 1;
+  overflow-y: auto;
+  padding: 2rem 1rem;
+}
+
+.page-main.index-page {
+  max-width: 560px;
+}
+
+.page-main.gallery-page {
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+@media (max-width: 768px) {
+  .page-layout {
+    flex-direction: column;
+  }
+  .queue-sidebar {
+    width: 100%;
+    max-height: 240px;
+    border-right: none;
+    border-bottom: 1px solid #313244;
+  }
+}

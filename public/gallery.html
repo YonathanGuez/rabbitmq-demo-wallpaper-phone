@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wallpaper Gallery</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, sans-serif;
+      margin: 0;
+      color: #1a1a1a;
+    }
+    nav { margin-bottom: 1.5rem; font-size: 0.9rem; }
+    nav a { color: #ff6600; text-decoration: none; }
+    nav a:hover { text-decoration: underline; }
+    h1 { font-size: 1.4rem; margin-bottom: 0.25rem; }
+    p.sub { color: #666; font-size: 0.9rem; margin-top: 0; }
+    .card {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 1.25rem;
+      margin-top: 1.25rem;
+    }
+    input[type="file"] { margin-bottom: 0.75rem; width: 100%; }
+    button {
+      background: #ff6600;
+      color: #fff;
+      border: none;
+      padding: 0.5rem 1.25rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.95rem;
+    }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .selected-count { font-size: 0.85rem; color: #666; margin-bottom: 0.75rem; }
+    .queue { margin-top: 1rem; display: none; }
+    .queue.visible { display: block; }
+    .queue h2 { font-size: 1rem; margin: 0 0 0.75rem; }
+    .job {
+      border: 1px solid #eee;
+      border-radius: 6px;
+      padding: 0.75rem;
+      margin-bottom: 0.5rem;
+      background: #fafafa;
+    }
+    .job-name {
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 0.35rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .bar-bg {
+      background: #eee;
+      border-radius: 4px;
+      height: 14px;
+      overflow: hidden;
+    }
+    .bar-fill {
+      background: #ff6600;
+      height: 100%;
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+    .job-status { font-size: 0.8rem; color: #555; margin-top: 0.3rem; }
+    .job.done .bar-fill { background: #2a9d4b; }
+    .job.error .bar-fill { background: #c0392b; }
+    .gallery-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+    .gallery-header h2 { font-size: 1rem; margin: 0; }
+    .gallery-count { font-size: 0.85rem; color: #666; }
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 1rem;
+    }
+    .gallery-empty {
+      grid-column: 1 / -1;
+      text-align: center;
+      color: #999;
+      padding: 2rem;
+      font-size: 0.9rem;
+    }
+    .wallpaper-card {
+      border: 1px solid #eee;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #fff;
+    }
+    .wallpaper-card img {
+      width: 100%;
+      aspect-ratio: 9 / 16;
+      object-fit: cover;
+      display: block;
+      background: #f0f0f0;
+    }
+    .wallpaper-info {
+      padding: 0.6rem;
+      font-size: 0.75rem;
+    }
+    .wallpaper-info .name {
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 0.2rem;
+    }
+    .wallpaper-info .meta { color: #666; }
+    .wallpaper-info a {
+      display: inline-block;
+      margin-top: 0.35rem;
+      color: #ff6600;
+      font-weight: 600;
+      text-decoration: none;
+      font-size: 0.75rem;
+    }
+    .wallpaper-info a:hover { text-decoration: underline; }
+    .bg-picker { margin: 0 0 1rem; }
+    .bg-picker label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem; }
+    .bg-controls { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
+    .bg-controls input[type="color"] {
+      width: 44px; height: 36px; padding: 2px; border: 1px solid #ccc;
+      border-radius: 6px; cursor: pointer; background: none;
+    }
+    .bg-controls input[type="text"] {
+      flex: 1; padding: 0.4rem 0.5rem; border: 1px solid #ccc;
+      border-radius: 6px; font-family: monospace; font-size: 0.85rem;
+    }
+    .bg-presets { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+    .bg-preset {
+      width: 28px; height: 28px; border-radius: 50%; border: 2px solid #ddd;
+      cursor: pointer; padding: 0;
+    }
+    .bg-preset:hover { border-color: #ff6600; }
+    .bg-swatch {
+      display: inline-block; width: 12px; height: 12px; border-radius: 2px;
+      border: 1px solid #ccc; vertical-align: middle;
+    }
+  </style>
+  <link rel="stylesheet" href="/queue-log.css" />
+</head>
+<body>
+  <div class="page-layout">
+    <aside class="queue-sidebar">
+      <h2>RabbitMQ messages</h2>
+      <p class="queue-hint">Live JSON published to <code>simulation_queue</code></p>
+      <div class="client-label-wrap">
+        <label for="clientLabel">Client name (simulate user)</label>
+        <input type="text" id="clientLabel" placeholder="User-A" />
+      </div>
+      <p class="sim-tip">
+        <strong>Multiple users:</strong> open this page in several tabs/browsers and set a different client name in each.<br />
+        <strong>Multiple workers:</strong> run <code>podman compose up -d --scale worker=3</code>
+      </p>
+      <ul id="queueLogList"></ul>
+    </aside>
+    <main class="page-main gallery-page">
+  <nav><a href="/">← Single upload</a></nav>
+
+  <h1>Wallpaper Gallery</h1>
+  <p class="sub">Upload multiple photos at once. Each image is fitted to 1080×1920 without cropping — choose one background color for the batch.</p>
+
+  <div class="card">
+    <div class="bg-picker">
+      <label for="bgColor">Bar background color</label>
+      <div class="bg-controls">
+        <input type="color" id="bgColor" value="#000000" />
+        <input type="text" id="bgHex" value="#000000" maxlength="7" spellcheck="false" aria-label="Hex color" />
+      </div>
+      <div class="bg-presets">
+        <button type="button" class="bg-preset" data-color="#000000" style="background:#000000" title="Black"></button>
+        <button type="button" class="bg-preset" data-color="#ffffff" style="background:#ffffff" title="White"></button>
+        <button type="button" class="bg-preset" data-color="#1a1a2e" style="background:#1a1a2e" title="Dark blue"></button>
+        <button type="button" class="bg-preset" data-color="#f5f5f5" style="background:#f5f5f5" title="Light gray"></button>
+        <button type="button" class="bg-preset" data-color="#ff6600" style="background:#ff6600" title="Orange"></button>
+      </div>
+    </div>
+    <input type="file" id="fileInput" accept="image/*" multiple />
+    <p class="file-hint" style="font-size:0.8rem;color:#888;margin:-0.5rem 0 0.75rem">Tip: hold Ctrl/Cmd to select multiple images.</p>
+    <div class="selected-count" id="selectedCount">No images selected</div>
+    <button id="uploadBtn" disabled>Upload all &amp; resize</button>
+
+    <div class="queue" id="queueWrap">
+      <h2>Processing queue</h2>
+      <div id="queueList"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="gallery-header">
+      <h2>Saved wallpapers</h2>
+      <span class="gallery-count" id="galleryCount">0 wallpapers</span>
+    </div>
+    <div class="gallery" id="gallery">
+      <div class="gallery-empty" id="galleryEmpty">No wallpapers yet — upload some images above.</div>
+    </div>
+  </div>
+    </main>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/bg-picker.js"></script>
+  <script src="/queue-log.js"></script>
+  <script>
+    const socket = io();
+    const getClientLabel = initQueueLog(socket);
+    const getBackgroundColor = initBackgroundPicker();
+    const fileInput = document.getElementById('fileInput');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const selectedCount = document.getElementById('selectedCount');
+    const queueWrap = document.getElementById('queueWrap');
+    const queueList = document.getElementById('queueList');
+    const gallery = document.getElementById('gallery');
+    const galleryEmpty = document.getElementById('galleryEmpty');
+    const galleryCount = document.getElementById('galleryCount');
+
+    const jobs = new Map();
+    const wallpapers = new Map();
+
+    fileInput.addEventListener('change', () => {
+      const count = fileInput.files.length;
+      selectedCount.textContent = count
+        ? `${count} image${count > 1 ? 's' : ''} selected`
+        : 'No images selected';
+      uploadBtn.disabled = count === 0;
+    });
+
+    function renderJob(taskId) {
+      const job = jobs.get(taskId);
+      if (!job) return '';
+      const cls = job.error ? 'error' : job.progress === 100 ? 'done' : '';
+      return `
+        <div class="job ${cls}" data-task="${taskId}">
+          <div class="job-name">${job.originalName}</div>
+          <div class="bar-bg"><div class="bar-fill" style="width:${job.progress}%"></div></div>
+          <div class="job-status">${job.status}</div>
+        </div>`;
+    }
+
+    function refreshQueue() {
+      queueList.innerHTML = [...jobs.values()]
+        .sort((a, b) => a.startedAt - b.startedAt)
+        .map((j) => renderJob(j.taskId))
+        .join('');
+      queueWrap.classList.toggle('visible', jobs.size > 0);
+    }
+
+    function renderWallpaperCard(wp) {
+      const date = new Date(wp.createdAt).toLocaleString();
+      const bg = wp.backgroundColor || '#000000';
+      return `
+        <article class="wallpaper-card" data-task="${wp.taskId}">
+          <img src="${wp.resultUrl}" alt="${wp.originalName}" loading="lazy" />
+          <div class="wallpaper-info">
+            <div class="name" title="${wp.originalName}">${wp.originalName}</div>
+            <div class="meta">${wp.width}×${wp.height} ${wp.format.toUpperCase()} · ${wp.sizeKb} KB</div>
+            <div class="meta">BG <span class="bg-swatch" style="background:${bg}"></span> ${bg}</div>
+            <div class="meta">${date}</div>
+            <a href="${wp.resultUrl}" download="${wp.originalName.replace(/\.[^.]+$/, '')}-wallpaper.${wp.format}">Download</a>
+          </div>
+        </article>`;
+    }
+
+    function refreshGallery() {
+      const list = [...wallpapers.values()].sort(
+        (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
+      );
+      galleryCount.textContent = `${list.length} wallpaper${list.length !== 1 ? 's' : ''}`;
+      galleryEmpty.style.display = list.length ? 'none' : 'block';
+
+      const existing = new Set([...gallery.querySelectorAll('.wallpaper-card')].map((el) => el.dataset.task));
+      for (const wp of list) {
+        if (existing.has(wp.taskId)) continue;
+        galleryEmpty.insertAdjacentHTML('afterend', renderWallpaperCard(wp));
+      }
+    }
+
+    async function loadGallery() {
+      const res = await fetch('/api/wallpapers');
+      const data = await res.json();
+      data.forEach((wp) => wallpapers.set(wp.taskId, wp));
+      gallery.querySelectorAll('.wallpaper-card').forEach((el) => el.remove());
+      data.forEach((wp) => galleryEmpty.insertAdjacentHTML('afterend', renderWallpaperCard(wp)));
+      galleryCount.textContent = `${data.length} wallpaper${data.length !== 1 ? 's' : ''}`;
+      galleryEmpty.style.display = data.length ? 'none' : 'block';
+    }
+
+    function trackTask(taskId, originalName) {
+      jobs.set(taskId, {
+        taskId,
+        originalName,
+        progress: 0,
+        status: 'Queued...',
+        startedAt: Date.now(),
+      });
+      socket.emit('join-task', taskId);
+      refreshQueue();
+    }
+
+    socket.on('task:progress', ({ taskId, progress, status, originalName, ...result }) => {
+      const job = jobs.get(taskId) || {
+        taskId,
+        originalName: originalName || 'Image',
+        startedAt: Date.now(),
+      };
+      job.progress = progress;
+      job.status = status;
+      job.error = status.startsWith('Error');
+      jobs.set(taskId, job);
+      refreshQueue();
+
+      if (progress === 100 && result.resultUrl && !job.error) {
+        wallpapers.set(taskId, { taskId, originalName: job.originalName, ...result });
+        if (!gallery.querySelector(`[data-task="${taskId}"]`)) {
+          galleryEmpty.insertAdjacentHTML('afterend', renderWallpaperCard(wallpapers.get(taskId)));
+          galleryEmpty.style.display = 'none';
+          galleryCount.textContent = `${wallpapers.size} wallpaper${wallpapers.size !== 1 ? 's' : ''}`;
+        }
+      }
+    });
+
+    socket.on('wallpaper:added', (wp) => {
+      wallpapers.set(wp.taskId, wp);
+      if (!gallery.querySelector(`[data-task="${wp.taskId}"]`)) {
+        galleryEmpty.insertAdjacentHTML('afterend', renderWallpaperCard(wp));
+        galleryEmpty.style.display = 'none';
+        galleryCount.textContent = `${wallpapers.size} wallpaper${wallpapers.size !== 1 ? 's' : ''}`;
+      }
+    });
+
+    uploadBtn.addEventListener('click', async () => {
+      const files = [...fileInput.files];
+      if (!files.length) return;
+
+      uploadBtn.disabled = true;
+      const form = new FormData();
+      files.forEach((file) => form.append('files', file));
+      form.append('backgroundColor', getBackgroundColor());
+      form.append('clientLabel', getClientLabel());
+
+      try {
+        const res = await fetch('/upload/batch', { method: 'POST', body: form });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Upload failed');
+
+        data.tasks.forEach(({ taskId, originalName }) => trackTask(taskId, originalName));
+        fileInput.value = '';
+        selectedCount.textContent = 'No images selected';
+      } catch (err) {
+        alert('Upload failed: ' + err.message);
+      } finally {
+        uploadBtn.disabled = fileInput.files.length === 0;
+      }
+    });
+
+    loadGallery();
+  </script>
+</body>
+</html>

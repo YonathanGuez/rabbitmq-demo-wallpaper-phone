@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Phone Wallpaper Resizer</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font-family: system-ui, sans-serif;
+        margin: 0;
+        color: #1a1a1a;
+      }
+      h1 {
+        font-size: 1.4rem;
+        margin-bottom: 0.25rem;
+      }
+      p.sub {
+        color: #666;
+        font-size: 0.9rem;
+        margin-top: 0;
+      }
+      .card {
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 1.25rem;
+        margin-top: 1.5rem;
+      }
+      input[type="file"] {
+        margin-bottom: 0.75rem;
+        width: 100%;
+      }
+      button {
+        background: #ff6600;
+        color: #fff;
+        border: none;
+        padding: 0.5rem 1.25rem;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.95rem;
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .preview {
+        margin-top: 1rem;
+        display: none;
+      }
+      .preview.visible {
+        display: block;
+      }
+      .preview img {
+        max-width: 100%;
+        max-height: 160px;
+        border-radius: 6px;
+        border: 1px solid #eee;
+      }
+      .progress-wrap {
+        margin-top: 1.25rem;
+        display: none;
+      }
+      .progress-wrap.visible {
+        display: block;
+      }
+      .bar-bg {
+        background: #eee;
+        border-radius: 4px;
+        height: 22px;
+        overflow: hidden;
+      }
+      .bar-fill {
+        background: #ff6600;
+        height: 100%;
+        width: 0%;
+        transition: width 0.4s ease;
+      }
+      .status {
+        margin-top: 0.5rem;
+        font-size: 0.9rem;
+        color: #444;
+      }
+      .result {
+        margin-top: 1rem;
+        display: none;
+      }
+      .result.visible {
+        display: block;
+      }
+      .result img {
+        width: 100%;
+        max-width: 200px;
+        border-radius: 8px;
+        border: 2px solid #ff6600;
+        display: block;
+        margin: 0.5rem 0;
+      }
+      .result a {
+        color: #ff6600;
+        font-weight: 600;
+        text-decoration: none;
+      }
+      .result a:hover {
+        text-decoration: underline;
+      }
+      .meta {
+        font-size: 0.8rem;
+        color: #666;
+      }
+      .task-id {
+        margin-top: 0.75rem;
+        font-size: 0.75rem;
+        color: #999;
+        word-break: break-all;
+      }
+      nav {
+        margin-bottom: 1rem;
+        font-size: 0.9rem;
+      }
+      nav a {
+        color: #ff6600;
+        text-decoration: none;
+      }
+      nav a:hover {
+        text-decoration: underline;
+      }
+      .bg-picker {
+        margin: 0 0 1rem;
+      }
+      .bg-picker label {
+        display: block;
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+      }
+      .bg-controls {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.5rem;
+      }
+      .bg-controls input[type="color"] {
+        width: 44px;
+        height: 36px;
+        padding: 2px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        cursor: pointer;
+        background: none;
+      }
+      .bg-controls input[type="text"] {
+        flex: 1;
+        padding: 0.4rem 0.5rem;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        font-family: monospace;
+        font-size: 0.85rem;
+      }
+      .bg-presets {
+        display: flex;
+        gap: 0.4rem;
+        flex-wrap: wrap;
+      }
+      .bg-preset {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        border: 2px solid #ddd;
+        cursor: pointer;
+        padding: 0;
+      }
+      .bg-preset:hover {
+        border-color: #ff6600;
+      }
+      .selected-count {
+        font-size: 0.85rem;
+        color: #666;
+        margin-bottom: 0.75rem;
+      }
+      .file-hint {
+        font-size: 0.8rem;
+        color: #888;
+        margin: -0.5rem 0 0.75rem;
+      }
+      .batch-queue {
+        margin-top: 1rem;
+        display: none;
+      }
+      .batch-queue.visible {
+        display: block;
+      }
+      .batch-queue h2 {
+        font-size: 0.95rem;
+        margin: 0 0 0.75rem;
+      }
+      .job {
+        border: 1px solid #eee;
+        border-radius: 6px;
+        padding: 0.75rem;
+        margin-bottom: 0.5rem;
+        background: #fafafa;
+      }
+      .job-name {
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin-bottom: 0.35rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .job .bar-bg {
+        height: 14px;
+      }
+      .job-status {
+        font-size: 0.8rem;
+        color: #555;
+        margin-top: 0.3rem;
+      }
+      .job.done .bar-fill {
+        background: #2a9d4b;
+      }
+      .job.error .bar-fill {
+        background: #c0392b;
+      }
+    </style>
+    <link rel="stylesheet" href="/queue-log.css" />
+  </head>
+  <body>
+    <div class="page-layout">
+      <aside class="queue-sidebar">
+        <h2>RabbitMQ messages</h2>
+        <p class="queue-hint">Live JSON published to <code>simulation_queue</code></p>
+        <div class="client-label-wrap">
+          <label for="clientLabel">Client name (simulate user)</label>
+          <input type="text" id="clientLabel" placeholder="User-A" />
+        </div>
+        <p class="sim-tip">
+          <strong>Multiple users:</strong> open this page in several tabs/browsers and set a different client name in each.<br />
+          <strong>Multiple workers:</strong> run <code>podman compose up -d --scale worker=3</code>
+        </p>
+        <ul id="queueLogList"></ul>
+      </aside>
+      <main class="page-main index-page">
+    <nav><a href="/gallery.html">View saved gallery →</a></nav>
+
+    <h1>Phone Wallpaper Resizer</h1>
+    <p class="sub">
+      Upload one or more photos — fitted to 1080×1920 WebP. Hold Ctrl/Cmd to
+      select multiple images.
+    </p>
+
+    <div class="card">
+      <div class="bg-picker">
+        <label for="bgColor">Bar background color</label>
+        <div class="bg-controls">
+          <input type="color" id="bgColor" value="#000000" />
+          <input
+            type="text"
+            id="bgHex"
+            value="#000000"
+            maxlength="7"
+            spellcheck="false"
+            aria-label="Hex color"
+          />
+        </div>
+        <div class="bg-presets">
+          <button
+            type="button"
+            class="bg-preset"
+            data-color="#000000"
+            style="background: #000000"
+            title="Black"
+          ></button>
+          <button
+            type="button"
+            class="bg-preset"
+            data-color="#ffffff"
+            style="background: #ffffff"
+            title="White"
+          ></button>
+          <button
+            type="button"
+            class="bg-preset"
+            data-color="#ff6600"
+            style="background: #f20e2c"
+            title="Red"
+          ></button>
+        </div>
+      </div>
+      <input type="file" id="fileInput" accept="image/*" multiple />
+      <p class="file-hint">Tip: select multiple files at once in the file picker.</p>
+      <div class="selected-count" id="selectedCount">No images selected</div>
+      <button id="uploadBtn" disabled>Upload &amp; Resize</button>
+
+      <div class="preview" id="previewWrap">
+        <img id="previewImg" alt="Selected image preview" />
+      </div>
+
+      <div class="batch-queue" id="batchQueue">
+        <h2>Processing queue</h2>
+        <div id="batchList"></div>
+      </div>
+
+      <div class="progress-wrap" id="progressWrap">
+        <div class="bar-bg"><div class="bar-fill" id="barFill"></div></div>
+        <div class="status" id="statusLabel">Waiting...</div>
+        <div class="task-id" id="taskIdLabel"></div>
+      </div>
+
+      <div class="result" id="resultWrap">
+        <p class="meta" id="resultMeta"></p>
+        <img id="resultImg" alt="Phone wallpaper preview" />
+        <a id="downloadLink" href="#" download>Download wallpaper</a>
+      </div>
+    </div>
+      </main>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/bg-picker.js"></script>
+    <script src="/queue-log.js"></script>
+    <script>
+      const socket = io();
+      const getClientLabel = initQueueLog(socket);
+      const getBackgroundColor = initBackgroundPicker();
+      const fileInput = document.getElementById("fileInput");
+      const uploadBtn = document.getElementById("uploadBtn");
+      const previewWrap = document.getElementById("previewWrap");
+      const previewImg = document.getElementById("previewImg");
+      const progressWrap = document.getElementById("progressWrap");
+      const barFill = document.getElementById("barFill");
+      const statusLabel = document.getElementById("statusLabel");
+      const taskIdLabel = document.getElementById("taskIdLabel");
+      const resultWrap = document.getElementById("resultWrap");
+      const resultImg = document.getElementById("resultImg");
+      const resultMeta = document.getElementById("resultMeta");
+      const downloadLink = document.getElementById("downloadLink");
+      const selectedCount = document.getElementById("selectedCount");
+      const batchQueue = document.getElementById("batchQueue");
+      const batchList = document.getElementById("batchList");
+
+      const jobs = new Map();
+
+      fileInput.addEventListener("change", () => {
+        const files = [...fileInput.files];
+        selectedCount.textContent = files.length
+          ? `${files.length} image${files.length > 1 ? "s" : ""} selected`
+          : "No images selected";
+        uploadBtn.disabled = files.length === 0;
+
+        if (files.length === 1) {
+          previewImg.src = URL.createObjectURL(files[0]);
+          previewWrap.classList.add("visible");
+        } else {
+          previewWrap.classList.remove("visible");
+        }
+        resultWrap.classList.remove("visible");
+      });
+
+      function renderJob(taskId) {
+        const job = jobs.get(taskId);
+        if (!job) return "";
+        const cls = job.error ? "error" : job.progress === 100 ? "done" : "";
+        return `
+          <div class="job ${cls}" data-task="${taskId}">
+            <div class="job-name">${job.originalName}</div>
+            <div class="bar-bg"><div class="bar-fill" style="width:${job.progress}%"></div></div>
+            <div class="job-status">${job.status}</div>
+          </div>`;
+      }
+
+      function refreshBatchQueue() {
+        batchList.innerHTML = [...jobs.values()]
+          .sort((a, b) => a.startedAt - b.startedAt)
+          .map((j) => renderJob(j.taskId))
+          .join("");
+        batchQueue.classList.toggle("visible", jobs.size > 1);
+      }
+
+      function trackTask(taskId, originalName) {
+        jobs.set(taskId, {
+          taskId,
+          originalName,
+          progress: 0,
+          status: "Queued...",
+          startedAt: Date.now(),
+        });
+        socket.emit("join-task", taskId);
+        refreshBatchQueue();
+      }
+
+      socket.on(
+        "task:progress",
+        ({
+          taskId,
+          progress,
+          status,
+          resultUrl,
+          width,
+          height,
+          format,
+          sizeKb,
+          backgroundColor,
+          originalName,
+        }) => {
+          if (jobs.has(taskId) || jobs.size > 1) {
+            const job = jobs.get(taskId) || {
+              taskId,
+              originalName: originalName || "Image",
+              startedAt: Date.now(),
+            };
+            job.progress = progress;
+            job.status = status;
+            job.error = status.startsWith("Error");
+            jobs.set(taskId, job);
+            refreshBatchQueue();
+            return;
+          }
+
+          barFill.style.width = progress + "%";
+          statusLabel.textContent = status;
+
+          if (resultUrl && progress === 100 && !status.startsWith("Error")) {
+            resultImg.src = resultUrl + "?t=" + Date.now();
+            const bg = backgroundColor || getBackgroundColor();
+            resultMeta.textContent = `${width}×${height} ${format.toUpperCase()} · ~${sizeKb} KB · bg ${bg}`;
+            downloadLink.href = resultUrl;
+            downloadLink.download = "phone-wallpaper." + format;
+            resultWrap.classList.add("visible");
+          }
+        },
+      );
+
+      uploadBtn.addEventListener("click", async () => {
+        const files = [...fileInput.files];
+        if (!files.length) return alert("Choose at least one image.");
+        if (files.some((f) => !f.type.startsWith("image/")))
+          return alert("Please select image files only.");
+
+        uploadBtn.disabled = true;
+        resultWrap.classList.remove("visible");
+        jobs.clear();
+        batchQueue.classList.remove("visible");
+
+        const form = new FormData();
+        form.append("backgroundColor", getBackgroundColor());
+        form.append("clientLabel", getClientLabel());
+
+        if (files.length === 1) {
+          progressWrap.classList.add("visible");
+          barFill.style.width = "0%";
+          statusLabel.textContent = "Uploading...";
+          form.append("file", files[0]);
+
+          try {
+            const res = await fetch("/upload", { method: "POST", body: form });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Upload failed");
+
+            taskIdLabel.textContent = "Task ID: " + data.taskId;
+            socket.emit("join-task", data.taskId);
+            statusLabel.textContent = "Queued — waiting for worker...";
+          } catch (err) {
+            statusLabel.textContent = "Error: " + err.message;
+          } finally {
+            uploadBtn.disabled = false;
+          }
+          return;
+        }
+
+        progressWrap.classList.remove("visible");
+        files.forEach((file) => form.append("files", file));
+
+        try {
+          const res = await fetch("/upload/batch", { method: "POST", body: form });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || "Upload failed");
+
+          data.tasks.forEach(({ taskId, originalName }) =>
+            trackTask(taskId, originalName),
+          );
+          fileInput.value = "";
+          selectedCount.textContent = "No images selected";
+        } catch (err) {
+          alert("Upload failed: " + err.message);
+        } finally {
+          uploadBtn.disabled = fileInput.files.length === 0;
+        }
+      });
+    </script>
+  </body>
+</html>
